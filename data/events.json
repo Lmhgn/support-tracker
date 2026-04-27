@@ -1,0 +1,201 @@
+{
+  "lastUpdated": "2026-04-27T15:43:04.746Z",
+  "isDemo": true,
+  "venues": [
+    {
+      "name": "O2 Academy Brixton",
+      "url": "https://www.academymusicgroup.com/o2academybrixton/events",
+      "events": [
+        {
+          "title": "Kes: Roots Rock Soca Tour",
+          "date": "SAT 02 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Kes",
+            "COUTAIN"
+          ],
+          "headliners": [
+            "Kes"
+          ],
+          "supportActs": [
+            "COUTAIN"
+          ]
+        },
+        {
+          "title": "Ninja Sex Party & TWRP: Pure Elegance Tour",
+          "date": "TUE 05 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Ninja Sex Party",
+            "TWRP",
+            "Jazz Emu"
+          ],
+          "headliners": [
+            "Ninja Sex Party",
+            "TWRP"
+          ],
+          "supportActs": [
+            "Jazz Emu"
+          ]
+        },
+        {
+          "title": "Bloc Party",
+          "date": "FRI 09 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Bloc Party",
+            "Self Esteem"
+          ],
+          "headliners": [
+            "Bloc Party"
+          ],
+          "supportActs": [
+            "Self Esteem"
+          ]
+        },
+        {
+          "title": "Suede: The Blue Hour Tour",
+          "date": "SAT 17 MAY",
+          "time": "18:30",
+          "allArtists": [
+            "Suede",
+            "Saint Saviour"
+          ],
+          "headliners": [
+            "Suede"
+          ],
+          "supportActs": [
+            "Saint Saviour"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "O2 Academy Islington",
+      "url": "https://www.academymusicgroup.com/o2academyislington/events",
+      "events": [
+        {
+          "title": "The Wrecks",
+          "date": "WED 07 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "The Wrecks",
+            "Darling"
+          ],
+          "headliners": [
+            "The Wrecks"
+          ],
+          "supportActs": [
+            "Darling"
+          ]
+        },
+        {
+          "title": "Girl in Red",
+          "date": "THU 15 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Girl in Red",
+            "Beabadoobee"
+          ],
+          "headliners": [
+            "Girl in Red"
+          ],
+          "supportActs": [
+            "Beabadoobee"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "O2 Forum Kentish Town",
+      "url": "https://www.academymusicgroup.com/o2forumkentishtown/events",
+      "events": [
+        {
+          "title": "Enter Shikari",
+          "date": "FRI 02 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Enter Shikari",
+            "As Everything Unfolds",
+            "Holding Absence"
+          ],
+          "headliners": [
+            "Enter Shikari"
+          ],
+          "supportActs": [
+            "As Everything Unfolds",
+            "Holding Absence"
+          ]
+        },
+        {
+          "title": "Phoebe Bridgers",
+          "date": "SUN 11 MAY",
+          "time": "19:30",
+          "allArtists": [
+            "Phoebe Bridgers",
+            "Lucy Dacus"
+          ],
+          "headliners": [
+            "Phoebe Bridgers"
+          ],
+          "supportActs": [
+            "Lucy Dacus"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "O2 Shepherd's Bush Empire",
+      "url": "https://www.academymusicgroup.com/o2shepherdsbushempire/events",
+      "events": [
+        {
+          "title": "Yard Act",
+          "date": "SAT 03 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "Yard Act",
+            "CMAT"
+          ],
+          "headliners": [
+            "Yard Act"
+          ],
+          "supportActs": [
+            "CMAT"
+          ]
+        },
+        {
+          "title": "The Libertines",
+          "date": "WED 14 MAY",
+          "time": "19:00",
+          "allArtists": [
+            "The Libertines",
+            "The Skints",
+            "Deadletter"
+          ],
+          "headliners": [
+            "The Libertines"
+          ],
+          "supportActs": [
+            "The Skints",
+            "Deadletter"
+          ]
+        },
+        {
+          "title": "Wednesday",
+          "date": "MON 19 MAY",
+          "time": "19:30",
+          "allArtists": [
+            "Wednesday",
+            "Squirrel Flower"
+          ],
+          "headliners": [
+            "Wednesday"
+          ],
+          "supportActs": [
+            "Squirrel Flower"
+          ]
+        }
+      ]
+    }
+  ]
+}

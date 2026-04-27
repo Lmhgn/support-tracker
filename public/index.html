@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Acts Dashboard — AMG Venues</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ===== HEADER ===== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+        <div>
+          <h1 class="site-title">Support Acts Dashboard</h1>
+          <p class="site-subtitle">Academy Music Group — Live Venue Tracker</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn--refresh" id="refreshBtn" onclick="refreshData()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+            <path d="M23 4v6h-6M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+          Refresh Data
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== STATS BAR ===== -->
+  <section class="stats-bar" id="statsBar" style="display:none">
+    <div class="stats-inner">
+      <div class="stat">
+        <span class="stat__value" id="statVenues">—</span>
+        <span class="stat__label">Venues</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat__value" id="statShows">—</span>
+        <span class="stat__label">Shows with Support</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat__value" id="statActs">—</span>
+        <span class="stat__label">Support Acts Listed</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat__value stat__value--small" id="statUpdated">—</span>
+        <span class="stat__label">Last Updated</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DEMO BANNER ===== -->
+  <div class="demo-banner" id="demoBanner" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    Showing <strong>demo data</strong>. Run <code>npm run scrape</code> in your terminal to fetch live event listings.
+  </div>
+
+  <!-- ===== CONTROLS ===== -->
+  <div class="controls-bar" id="controlsBar" style="display:none">
+    <div class="controls-inner">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          class="search-input"
+          id="searchInput"
+          type="text"
+          placeholder="Filter by artist, event or venue…"
+          oninput="filterEvents()"
+        />
+      </div>
+      <div class="venue-tabs" id="venueTabs"></div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content" id="mainContent">
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <p>Loading event data…</p>
+    </div>
+
+    <div class="error-state" id="errorState" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <h2>No data available</h2>
+      <p>Run the scraper to populate event data:</p>
+      <code class="code-block">npm run scrape</code>
+      <p class="hint">Or try demo mode: <code>npm run scrape:demo</code></p>
+    </div>
+
+    <div class="venues-grid" id="venuesGrid" style="display:none"></div>
+  </main>
+
+  <!-- ===== REFRESH LOG DRAWER ===== -->
+  <div class="log-drawer" id="logDrawer" style="display:none">
+    <div class="log-header">
+      <span>Scraper Output</span>
+      <button onclick="closeLog()" aria-label="Close">✕</button>
+    </div>
+    <pre class="log-body" id="logBody"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
