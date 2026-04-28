@@ -216,9 +216,35 @@
    ===================================================================== */
 var BOOKMARKLET_SRC = `(async function(){
 var p=document.createElement('div');
-p.style.cssText='position:fixed;top:16px;right:16px;z-index:2147483647;background:#0e0e1a;color:#e5e7eb;padding:12px 20px;border-radius:10px;font:600 13px/1.5 sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.5);min-width:260px;';
-document.body.appendChild(p);
-function sp(m){p.textContent='♫ Support Tracker — '+m;}
+p.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0e0e1a;color:#e5e7eb;padding:12px 24px;font:600 13px/1.5 sans-serif;box-shadow:0 2px 16px rgba(0,0,0,.6);display:flex;align-items:center;gap:16px;';
+var pTxt=document.createElement('span');pTxt.style.flex='1';p.appendChild(pTxt);
+var pBar=document.createElement('div');pBar.style.cssText='width:200px;height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden;flex-shrink:0;';
+var pFill=document.createElement('div');pFill.style.cssText='height:100%;width:0;background:#60a5fa;border-radius:3px;transition:width .4s;';
+pBar.appendChild(pFill);p.appendChild(pBar);document.body.appendChild(p);
+function sp(m,pct){pTxt.textContent='♫ Support Tracker — '+m;pFill.style.width=pct+'%';}
+var VENUES=[
+  {slug:'o2academybrixton',name:'O2 Academy Brixton'},
+  {slug:'o2academyislington',name:'O2 Academy Islington'},
+  {slug:'o2forumkentishtown',name:'O2 Forum Kentish Town'},
+  {slug:'o2shepherdsbushempire',name:"O2 Shepherd's Bush Empire"},
+  {slug:'o2apollomanchester',name:'O2 Apollo Manchester'},
+  {slug:'o2academyleeds',name:'O2 Academy Leeds'},
+  {slug:'o2academybirmingham',name:'O2 Academy Birmingham'},
+  {slug:'o2institutebirmingham',name:'O2 Institute Birmingham'},
+  {slug:'o2academyliverpool',name:'O2 Academy Liverpool'},
+  {slug:'o2academynewcastle',name:'O2 Academy Newcastle'},
+  {slug:'o2cityhallnewcastle',name:'O2 City Hall Newcastle'},
+  {slug:'o2academyglasgow',name:'O2 Academy Glasgow'},
+  {slug:'o2abcglasgow',name:'O2 ABC Glasgow'},
+  {slug:'o2academyoxford',name:'O2 Academy Oxford'},
+  {slug:'o2academysheffield',name:'O2 Academy Sheffield'},
+  {slug:'o2academybristol',name:'O2 Academy Bristol'},
+  {slug:'o2guildhallsouthampton',name:'O2 Guildhall Southampton'},
+  {slug:'o2victoriawarehouse',name:'O2 Victoria Warehouse Manchester'},
+  {slug:'o2academyedinburgh',name:'O2 Academy Edinburgh'},
+  {slug:'o2academyleicester',name:'O2 Academy Leicester'},
+  {slug:'o2pyramidportsmouth',name:'O2 Pyramid Portsmouth'}
+];
 function extractEvents(doc){
   var SELS=['.whats-on__item','.event-listing__item','.event-item','.events-list__item'];
   var items=[];
@@ -235,15 +261,11 @@ function extractEvents(doc){
     var tEl2=item.querySelector('[class*="time"]');
     var time=tEl2?tEl2.textContent.trim().replace(/\\s+/g,' ').slice(0,10):'';
     var artistText='';
-    var AS='[class*="artist"],[class*="support"],[class*="performer"],[class*="lineup"],[class*="acts"]';
-    var aEl=item.querySelector(AS);
+    var aEl=item.querySelector('[class*="artist"],[class*="support"],[class*="performer"],[class*="lineup"],[class*="acts"]');
     if(aEl){var t=aEl.textContent.trim();if(t&&t!==title&&t.indexOf('|')===-1&&t.length>2&&t.length<300)artistText=t;}
     if(!artistText){
       var els=[...item.querySelectorAll('p,span')];
-      for(var k=0;k<els.length;k++){
-        var t2=els[k].textContent.trim();
-        if(t2.indexOf(',')!==-1&&t2!==title&&t2.indexOf('|')===-1&&t2.length>3&&t2.length<200){artistText=t2;break;}
-      }
+      for(var k=0;k<els.length;k++){var t2=els[k].textContent.trim();if(t2.indexOf(',')!==-1&&t2!==title&&t2.indexOf('|')===-1&&t2.length>3&&t2.length<200){artistText=t2;break;}}
     }
     if(!artistText)return;
     var artists=artistText.split(',').map(function(a){return a.trim();}).filter(Boolean);
@@ -262,33 +284,38 @@ function getNext(doc,cur){
   if(!el||!el.href)return null;
   try{var u=new URL(el.href,cur);return u.href===cur?null:u.href;}catch(e){return null;}
 }
-var slug=window.location.pathname.split('/').filter(Boolean)[0]||'venue';
-var VN={'o2academybrixton':'O2 Academy Brixton','o2academyislington':'O2 Academy Islington','o2forumkentishtown':'O2 Forum Kentish Town','o2shepherdsbushempire':"O2 Shepherd's Bush Empire",'o2academyleeds':'O2 Academy Leeds','o2academybirmingham':'O2 Academy Birmingham','o2academyliverpool':'O2 Academy Liverpool','o2academynewcastle':'O2 Academy Newcastle','o2academyglasgow':'O2 Academy Glasgow','o2academyoxford':'O2 Academy Oxford','o2guildhallsouthampton':'O2 Guildhall Southampton'};
-var venueName=VN[slug]||document.title||slug;
-sp('Scanning page 1…');
-var all=extractEvents(document);
-var nextUrl=getNext(document,window.location.href);
-var pages=1;
-while(nextUrl&&pages<25){
-  pages++;sp('Scanning page '+pages+'…');
-  try{
-    var res=await fetch(nextUrl,{credentials:'include'});
-    if(!res.ok)break;
-    var html=await res.text();
-    var doc2=new DOMParser().parseFromString(html,'text/html');
-    all=all.concat(extractEvents(doc2));
-    nextUrl=getNext(doc2,nextUrl);
-    await new Promise(function(r){setTimeout(r,400);});
-  }catch(e){break;}
+async function scrapeVenue(v,idx){
+  var url='https://www.academymusicgroup.com/'+v.slug+'/events';
+  var all=[];var pages=0;
+  while(url&&pages<25){
+    pages++;
+    sp('Crawling '+v.name+' ('+idx+'/'+VENUES.length+') — p'+pages,Math.round((idx-1)/VENUES.length*100));
+    try{
+      var res=await fetch(url,{credentials:'include'});
+      if(!res.ok)break;
+      var html=await res.text();
+      var doc=new DOMParser().parseFromString(html,'text/html');
+      all=all.concat(extractEvents(doc));
+      url=getNext(doc,url);
+      if(url)await new Promise(function(r){setTimeout(r,350);});
+    }catch(e){break;}
+  }
+  return all;
+}
+sp('Starting — crawling '+VENUES.length+' venues…',0);
+var results=[];
+for(var i=0;i<VENUES.length;i++){
+  var v=VENUES[i];
+  var evs=await scrapeVenue(v,i+1);
+  if(evs.length)results.push({slug:v.slug,venue:v.name,url:'https://www.academymusicgroup.com/'+v.slug+'/events',events:evs,scraped:new Date().toISOString()});
 }
 p.remove();
-if(!all.length){alert('Support Tracker: No events with support acts found.\\n\\nMake sure you are on an AMG venue events listing page.');return;}
-var payload={venue:venueName,url:window.location.href.replace(/\\/page\\/\\d+/,''),slug:slug,events:all,pages:pages,scraped:new Date().toISOString()};
-var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slug+'-support-acts.json';
-document.body.appendChild(a);a.click();document.body.removeChild(a);
-setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
-alert('✓ '+all.length+' events with support acts found across '+pages+' page'+(pages>1?'s':'')+'!\\n\\nA JSON file has been downloaded — drag it into the Support Acts Dashboard to load the data.');
+if(!results.length){alert('Support Tracker: No events with support acts found.\\nMake sure you are on an academymusicgroup.com page.');return;}
+var total=results.reduce(function(s,v){return s+v.events.length;},0);
+var blob=new Blob([JSON.stringify({venues:results,scraped:new Date().toISOString()},null,2)],{type:'application/json'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='amg-support-acts-all.json';
+document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},3000);
+alert('✓ Done! '+total+' shows with support acts across '+results.length+' venues.\\nJSON file downloaded — drop it onto the Support Acts Dashboard.');
 })();`;
 
 function makeBookmarkletHref() {
@@ -332,12 +359,18 @@ function handleFiles(files) {
     reader.onload = function(e) {
       try {
         var payload = JSON.parse(e.target.result);
-        if (payload.slug && Array.isArray(payload.events)) {
-          var store = loadStore();
+        var store = loadStore();
+        if (Array.isArray(payload.venues)) {
+          // Bulk format: { venues: [...], scraped }
+          payload.venues.forEach(function(v) {
+            if (v.slug && Array.isArray(v.events)) store[v.slug] = v;
+          });
+        } else if (payload.slug && Array.isArray(payload.events)) {
+          // Single-venue legacy format
           store[payload.slug] = payload;
-          saveStore(store);
         }
-      } catch(err) { alert('Could not parse file: ' + file.name); }
+        saveStore(store);
+      } catch(err) { alert('Could not parse ' + file.name + ' — make sure it was downloaded by the bookmarklet.'); }
       pending--;
       if (pending === 0) renderAll();
     };
@@ -383,9 +416,9 @@ function renderOnboarding() {
       '</div>' +
       '<div class="steps">' +
         '<div class="step"><div class="step-num">1</div><p>Drag the bookmarklet below to your <strong>bookmarks bar</strong></p></div>' +
-        '<div class="step"><div class="step-num">2</div><p>Go to any <strong>AMG venue events page</strong> (e.g. O2 Brixton)</p></div>' +
-        '<div class="step"><div class="step-num">3</div><p>Click the bookmarklet — it scans <strong>all pages</strong> and downloads a JSON file</p></div>' +
-        '<div class="step"><div class="step-num">4</div><p><strong>Drag the file</strong> onto this page (or click Load Venue Data)</p></div>' +
+        '<div class="step"><div class="step-num">2</div><p>Go to <strong>any page</strong> on academymusicgroup.com</p></div>' +
+        '<div class="step"><div class="step-num">3</div><p>Click the bookmarklet — it <strong>auto-crawls all 21 venues</strong> and downloads one JSON file</p></div>' +
+        '<div class="step"><div class="step-num">4</div><p><strong>Drop the file</strong> onto this page — done</p></div>' +
       '</div>' +
       '<div class="bm-panel">' +
         '<h3>Your Bookmarklet</h3>' +
