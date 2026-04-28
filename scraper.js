@@ -182,12 +182,12 @@
 
   /* -- Method 3: DOM -- */
   function fromDOM(doc) {
-    // True if element lives inside a hero / banner / carousel ancestor
+    // True if element lives inside a hero / banner / popup / cookie overlay
     function inBanner(el) {
       var node = el.parentElement;
       while (node && node !== doc.body) {
         var combined = ((node.className || '') + ' ' + (node.id || '')).toLowerCase();
-        if (/\b(hero|banner|featured|promo|carousel|slider|spotlight|masthead|highlight|marquee)\b/.test(combined)) return true;
+        if (/\b(hero|banner|featured|promo|carousel|slider|spotlight|masthead|highlight|marquee|modal|popup|overlay|cookie|consent|newsletter|gdpr|onetrust|dialog|lightbox|drawer)\b/.test(combined)) return true;
         node = node.parentElement;
       }
       return false;
@@ -227,6 +227,8 @@
       if (!tEl) return;
       var title = tEl.textContent.trim();
       if (!title || title.length < 3 || title.length > 200 || seen[title]) return;
+      // Skip cookie consent, newsletter and other page-furniture false positives
+      if (/privacy|cookie|gdpr|consent|newsletter|sign up|exclusive update|never miss|advertising and content|audience research|personalised/i.test(title)) return;
 
       var dEl = item.querySelector('[class*="date"],[class*="Date"],time,[class*="when"]');
       var date = dEl ? dEl.textContent.trim().replace(/\s+/g, ' ').slice(0, 60) : '';
@@ -238,16 +240,17 @@
         '[class*="artist"],[class*="Artist"],[class*="support"],[class*="Support"],' +
         '[class*="performer"],[class*="lineup"],[class*="acts"],[class*="subtitle"],[class*="Subtitle"]'
       );
+      var JUNK = /privacy|cookie|gdpr|consent|newsletter|sign up|exclusive update|never miss|advertising and content|audience research|personalised/i;
       if (aEl) {
         var t = aEl.textContent.trim();
-        if (t && t !== title && t.indexOf('|') === -1 && t.length > 2 && t.length < 300) artistText = t;
+        if (t && t !== title && !JUNK.test(t) && t.indexOf('|') === -1 && t.length > 2 && t.length < 300) artistText = t;
       }
       if (!artistText) {
         var els = Array.from(item.querySelectorAll('p,span,div'));
         for (var k = 0; k < els.length; k++) {
           if (els[k].querySelector('*')) continue;
           var t2 = els[k].textContent.trim();
-          if (t2.indexOf(',') !== -1 && t2 !== title && t2.indexOf('|') === -1 && t2.length > 3 && t2.length < 200) {
+          if (t2.indexOf(',') !== -1 && t2 !== title && !JUNK.test(t2) && t2.indexOf('|') === -1 && t2.length > 3 && t2.length < 200) {
             artistText = t2; break;
           }
         }
@@ -317,6 +320,28 @@
       }, 20000);
 
       iframe.onload = function () {
+        // Dismiss cookie/newsletter overlays so they don't block event rendering
+        setTimeout(function () {
+          try {
+            var doc = iframe.contentDocument;
+            if (!doc) return;
+            // Accept cookie consent (OneTrust, Cookiebot, generic)
+            ['#onetrust-accept-btn-handler','#CybotCookiebotDialogBodyButtonAccept',
+             '[class*="accept-all"]','[id*="acceptAll"]','[aria-label*="Accept all"]',
+             '[aria-label*="Accept All"]'].forEach(function (s) {
+              var el = doc.querySelector(s);
+              if (el) { try { el.click(); } catch (e) {} }
+            });
+            // Close newsletter / "Never miss a beat" popups
+            ['[class*="modal"] [class*="close"]','[class*="modal"] [aria-label*="close"]',
+             '[class*="popup"] [class*="close"]','[role="dialog"] [class*="close"]',
+             '[data-dismiss="modal"]','[class*="newsletter"] button'].forEach(function (s) {
+              var el = doc.querySelector(s);
+              if (el) { try { el.click(); } catch (e) {} }
+            });
+          } catch (e) {}
+        }, 1000); // wait 1s for overlays to render before dismissing
+
         // Poll until events appear in the iframe DOM or 8 s passes
         var pollStart = Date.now();
         var poll = setInterval(function () {
