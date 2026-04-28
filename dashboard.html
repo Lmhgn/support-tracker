@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Acts Dashboard — AMG Venues</title>
+  <style>
+    :root {
+      --bg: #f2f3f5;
+      --surface: #fff;
+      --header: #0e0e1a;
+      --accent: #1e3a8a;
+      --accent-lt: #eff6ff;
+      --red: #b91c1c;
+      --red-lt: #fef2f2;
+      --red-border: #fecaca;
+      --blue-badge-bg: #f0f9ff;
+      --blue-badge: #0369a1;
+      --text: #111827;
+      --text-2: #6b7280;
+      --text-3: #9ca3af;
+      --border: #e5e7eb;
+      --demo-bg: #fffbeb;
+      --demo-border: #fbbf24;
+      --demo-text: #92400e;
+      --r: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+      --shadow-hover: 0 4px 12px rgba(0,0,0,.10);
+      --mono: 'SF Mono','Fira Code',Consolas,monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    .hdr { background: var(--header); color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+    .hdr-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .hdr-brand { display: flex; align-items: center; gap: 12px; }
+    .hdr-dot { width: 10px; height: 10px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); flex-shrink: 0; }
+    .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+    .hdr-sub { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .hdr-right { display: flex; align-items: center; gap: 12px; }
+    .last-upd { font-size: 11px; color: #6b7280; }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 16px; transition: background .15s, transform .1s; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: #1e3a8a; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ghost { background: rgba(255,255,255,.08); color: #e5e7eb; border: 1px solid rgba(255,255,255,.15); }
+    .btn-ghost:hover { background: rgba(255,255,255,.14); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-danger { background: #fef2f2; color: #b91c1c; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* STATS BAR */
+    .stats-bar { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .stats-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; height: 52px; }
+    .stat { display: flex; flex-direction: column; align-items: center; padding: 0 24px; }
+    .stat-val { font-size: 19px; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-val-sm { font-size: 12px; font-weight: 600; }
+    .stat-lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .07em; margin-top: 2px; }
+    .stat-div { width: 1px; height: 26px; background: var(--border); }
+
+    /* CONTROLS */
+    .ctrl-bar { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 64px; z-index: 90; }
+    .ctrl-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 50px; }
+    .search-wrap { position: relative; }
+    .search-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+    .search-inp { font-family: inherit; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px 7px 32px; width: 220px; outline: none; background: var(--bg); color: var(--text); transition: border-color .15s, box-shadow .15s; }
+    .search-inp:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+    .vtabs { display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+    .vtabs::-webkit-scrollbar { display: none; }
+    .vtab { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 13px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-2); cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .vtab:hover { background: var(--accent-lt); border-color: #bfdbfe; color: var(--accent); }
+    .vtab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    /* MAIN */
+    .main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    /* EMPTY / ONBOARDING */
+    .onboard { display: flex; flex-direction: column; align-items: center; gap: 32px; padding: 40px 0; }
+    .onboard-hero { text-align: center; }
+    .onboard-hero h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .onboard-hero p { font-size: 14px; color: var(--text-2); max-width: 480px; }
+    .steps { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 880px; }
+    .step { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px; width: 200px; text-align: center; }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-lt); color: var(--accent); font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .step p { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .step strong { color: var(--text); }
+
+    /* BOOKMARKLET PANEL */
+    .bm-panel { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); padding: 24px 28px; max-width: 680px; width: 100%; }
+    .bm-panel h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .bm-panel p { font-size: 13px; color: var(--text-2); margin-bottom: 16px; }
+    .bm-link-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .bm-link { display: inline-block; background: var(--header); color: #60a5fa; font-family: var(--mono); font-size: 12px; padding: 9px 16px; border-radius: 8px; text-decoration: none; cursor: grab; border: 2px dashed #374151; transition: border-color .15s, background .15s; user-select: none; }
+    .bm-link:hover { border-color: #60a5fa; background: #1a1a2e; }
+    .bm-hint { font-size: 11px; color: var(--text-3); }
+
+    /* DROP ZONE */
+    .drop-zone { border: 2px dashed var(--border); border-radius: var(--r); padding: 36px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; max-width: 680px; width: 100%; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #93c5fd; background: var(--accent-lt); }
+    .drop-zone svg { color: var(--text-3); margin-bottom: 10px; }
+    .drop-zone p { font-size: 14px; font-weight: 600; color: var(--text-2); }
+    .drop-zone span { font-size: 12px; color: var(--text-3); }
+
+    /* VENUES GRID */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(540px, 1fr)); gap: 24px; }
+
+    /* VENUE CARD */
+    .vcard { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .2s; }
+    .vcard:hover { box-shadow: var(--shadow-hover); }
+    .vcard[hidden] { display: none; }
+    .vcard-hdr { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .vcard-name { font-size: 15px; font-weight: 700; }
+    .vcard-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+    .vcard-link { font-size: 11px; color: var(--text-3); text-decoration: none; display: flex; align-items: center; gap: 3px; }
+    .vcard-link:hover { color: var(--accent); }
+    .vcard-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+    .vcard-count { font-size: 12px; font-weight: 600; background: var(--accent-lt); color: var(--accent); padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+    .vcard-empty { padding: 28px 20px; color: var(--text-3); font-size: 13px; text-align: center; }
+    .vcard-err { padding: 14px 20px; font-size: 12px; color: #92400e; background: #fffbeb; }
+
+    /* EVENT ROWS */
+    .elist { list-style: none; }
+    .erow { display: grid; grid-template-columns: 80px 1fr; border-bottom: 1px solid var(--border); transition: background .1s; }
+    .erow:last-child { border-bottom: none; }
+    .erow:hover { background: #fafafa; }
+    .erow[hidden] { display: none; }
+    .erow-date { padding: 13px 10px 13px 18px; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: flex-start; }
+    .d-dow { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); }
+    .d-num { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1; margin: 1px 0; letter-spacing: -.02em; }
+    .d-mon { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); }
+    .d-time { font-size: 10px; color: var(--text-3); margin-top: 4px; }
+    .erow-detail { padding: 13px 16px 13px 13px; min-width: 0; }
+    .erow-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .artist-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; flex-wrap: wrap; }
+    .artist-row:last-child { margin-bottom: 0; }
+    .a-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); flex-shrink: 0; min-width: 56px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 4px; }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 5px; line-height: 1.5; white-space: nowrap; }
+    .badge-hl { background: var(--blue-badge-bg); color: var(--blue-badge); }
+    .badge-sup { background: var(--red-lt); color: var(--red); font-weight: 600; }
+
+    /* SPINNER */
+    .loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 60px 0; color: var(--text-2); font-size: 14px; }
+    .spin { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .hdr-sub, .last-upd { display: none; }
+      .ctrl-inner { height: auto; padding: 10px 16px; flex-wrap: wrap; }
+      .search-inp { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-inner">
+    <div class="hdr-brand">
+      <div class="hdr-dot"></div>
+      <div>
+        <div class="hdr-title">Support Acts Dashboard</div>
+        <div class="hdr-sub">Academy Music Group · Venue Tracker</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="last-upd" id="lastUpd"></span>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('fileInput').click()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Load Venue Data
+      </button>
+      <input type="file" id="fileInput" accept=".json" multiple style="display:none" onchange="handleFiles(this.files)" />
+    </div>
+  </div>
+</header>
+
+<div class="stats-bar" id="statsBar" style="display:none">
+  <div class="stats-inner">
+    <div class="stat"><span class="stat-val" id="sVenues">0</span><span class="stat-lbl">Venues</span></div>
+    <div class="stat-div"></div>
+    <div class="stat"><span class="stat-val" id="sShows">0</span><span class="stat-lbl">Shows w/ Support</span></div>
+    <div class="stat-div"></div>
+    <div class="stat"><span class="stat-val" id="sActs">0</span><span class="stat-lbl">Support Acts</span></div>
+    <div class="stat-div"></div>
+    <div class="stat"><span class="stat-val stat-val-sm" id="sDate">—</span><span class="stat-lbl">Last Scraped</span></div>
+  </div>
+</div>
+
+<div class="ctrl-bar" id="ctrlBar" style="display:none">
+  <div class="ctrl-inner">
+    <div class="search-wrap">
+      <svg class="search-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-inp" id="searchInp" type="text" placeholder="Search artist or event…" oninput="applyFilter()" />
+    </div>
+    <div class="vtabs" id="vtabs"></div>
+  </div>
+</div>
+
+<main class="main" id="main"></main>
+
+<!-- hidden drop overlay -->
+<div id="dropOverlay" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(30,58,138,.85);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+  Drop JSON files to load venue data
+</div>
+
+<script>
+/* =====================================================================
+   BOOKMARKLET SOURCE — runs on the AMG events page in the user's browser.
+   Scrapes current page + all paginated pages (same-origin fetch, so
+   Cloudflare sees a real authenticated browser session).
+   Downloads a JSON file the user loads into this dashboard.
+   ===================================================================== */
+var BOOKMARKLET_SRC = `(async function(){
+var p=document.createElement('div');
+p.style.cssText='position:fixed;top:16px;right:16px;z-index:2147483647;background:#0e0e1a;color:#e5e7eb;padding:12px 20px;border-radius:10px;font:600 13px/1.5 sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.5);min-width:260px;';
+document.body.appendChild(p);
+function sp(m){p.textContent='♫ Support Tracker — '+m;}
+function extractEvents(doc){
+  var SELS=['.whats-on__item','.event-listing__item','.event-item','.events-list__item'];
+  var items=[];
+  for(var i=0;i<SELS.length;i++){var f=[...doc.querySelectorAll(SELS[i])];if(f.length){items=f;break;}}
+  if(!items.length){items=[...doc.querySelectorAll('article,li')].filter(function(el){return el.querySelector('h2,h3,h4');});}
+  var events=[];var seen={};
+  items.forEach(function(item){
+    var tEl=item.querySelector('h2,h3,h4,[class*="title"],[class*="name"]');
+    if(!tEl)return;
+    var title=tEl.textContent.trim();
+    if(!title||title.length<3||seen[title])return;
+    var dEl=item.querySelector('[class*="date"],time,[class*="when"]');
+    var date=dEl?dEl.textContent.trim().replace(/\\s+/g,' ').slice(0,60):'';
+    var tEl2=item.querySelector('[class*="time"]');
+    var time=tEl2?tEl2.textContent.trim().replace(/\\s+/g,' ').slice(0,10):'';
+    var artistText='';
+    var AS='[class*="artist"],[class*="support"],[class*="performer"],[class*="lineup"],[class*="acts"]';
+    var aEl=item.querySelector(AS);
+    if(aEl){var t=aEl.textContent.trim();if(t&&t!==title&&t.indexOf('|')===-1&&t.length>2&&t.length<300)artistText=t;}
+    if(!artistText){
+      var els=[...item.querySelectorAll('p,span')];
+      for(var k=0;k<els.length;k++){
+        var t2=els[k].textContent.trim();
+        if(t2.indexOf(',')!==-1&&t2!==title&&t2.indexOf('|')===-1&&t2.length>3&&t2.length<200){artistText=t2;break;}
+      }
+    }
+    if(!artistText)return;
+    var artists=artistText.split(',').map(function(a){return a.trim();}).filter(Boolean);
+    if(artists.length<2)return;
+    var tL=title.toLowerCase();
+    var heads=artists.filter(function(a){return tL.indexOf(a.toLowerCase())!==-1;});
+    var sups=artists.filter(function(a){return tL.indexOf(a.toLowerCase())===-1;});
+    if(!sups.length)return;
+    seen[title]=true;
+    events.push({title:title,date:date,time:time,allArtists:artists,headliners:heads.length?heads:[artists[0]],supportActs:sups.length?sups:artists.slice(1)});
+  });
+  return events;
+}
+function getNext(doc,cur){
+  var el=doc.querySelector('a[rel="next"],.pagination__next a,.next a,a.next');
+  if(!el||!el.href)return null;
+  try{var u=new URL(el.href,cur);return u.href===cur?null:u.href;}catch(e){return null;}
+}
+var slug=window.location.pathname.split('/').filter(Boolean)[0]||'venue';
+var VN={'o2academybrixton':'O2 Academy Brixton','o2academyislington':'O2 Academy Islington','o2forumkentishtown':'O2 Forum Kentish Town','o2shepherdsbushempire':"O2 Shepherd's Bush Empire",'o2academyleeds':'O2 Academy Leeds','o2academybirmingham':'O2 Academy Birmingham','o2academyliverpool':'O2 Academy Liverpool','o2academynewcastle':'O2 Academy Newcastle','o2academyglasgow':'O2 Academy Glasgow','o2academyoxford':'O2 Academy Oxford','o2guildhallsouthampton':'O2 Guildhall Southampton'};
+var venueName=VN[slug]||document.title||slug;
+sp('Scanning page 1…');
+var all=extractEvents(document);
+var nextUrl=getNext(document,window.location.href);
+var pages=1;
+while(nextUrl&&pages<25){
+  pages++;sp('Scanning page '+pages+'…');
+  try{
+    var res=await fetch(nextUrl,{credentials:'include'});
+    if(!res.ok)break;
+    var html=await res.text();
+    var doc2=new DOMParser().parseFromString(html,'text/html');
+    all=all.concat(extractEvents(doc2));
+    nextUrl=getNext(doc2,nextUrl);
+    await new Promise(function(r){setTimeout(r,400);});
+  }catch(e){break;}
+}
+p.remove();
+if(!all.length){alert('Support Tracker: No events with support acts found.\\n\\nMake sure you are on an AMG venue events listing page.');return;}
+var payload={venue:venueName,url:window.location.href.replace(/\\/page\\/\\d+/,''),slug:slug,events:all,pages:pages,scraped:new Date().toISOString()};
+var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slug+'-support-acts.json';
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+alert('✓ '+all.length+' events with support acts found across '+pages+' page'+(pages>1?'s':'')+'!\\n\\nA JSON file has been downloaded — drag it into the Support Acts Dashboard to load the data.');
+})();`;
+
+function makeBookmarkletHref() {
+  var code = BOOKMARKLET_SRC
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return 'javascript:' + encodeURIComponent(code);
+}
+
+/* =====================================================================
+   STORAGE
+   ===================================================================== */
+var STORE_KEY = 'amg_support_tracker_v1';
+
+function loadStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveStore(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+
+function clearVenue(slug) {
+  var d = loadStore();
+  delete d[slug];
+  saveStore(d);
+  renderAll();
+}
+
+/* =====================================================================
+   FILE IMPORT
+   ===================================================================== */
+function handleFiles(files) {
+  var arr = Array.from(files);
+  var pending = arr.length;
+  if (!pending) return;
+  arr.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var payload = JSON.parse(e.target.result);
+        if (payload.slug && Array.isArray(payload.events)) {
+          var store = loadStore();
+          store[payload.slug] = payload;
+          saveStore(store);
+        }
+      } catch(err) { alert('Could not parse file: ' + file.name); }
+      pending--;
+      if (pending === 0) renderAll();
+    };
+    reader.readAsText(file);
+  });
+}
+
+/* drag-and-drop on body */
+document.addEventListener('dragover', function(e) { e.preventDefault(); document.getElementById('dropOverlay').style.display = 'flex'; });
+document.addEventListener('dragleave', function(e) { if (!e.relatedTarget) document.getElementById('dropOverlay').style.display = 'none'; });
+document.addEventListener('drop', function(e) {
+  e.preventDefault();
+  document.getElementById('dropOverlay').style.display = 'none';
+  handleFiles(e.dataTransfer.files);
+});
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+var activeTab = 'all';
+
+function renderAll() {
+  var store = loadStore();
+  var venues = Object.values(store);
+  if (venues.length === 0) {
+    renderOnboarding();
+    return;
+  }
+  renderStats(venues);
+  renderControls(venues);
+  renderGrid(venues);
+}
+
+function renderOnboarding() {
+  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('ctrlBar').style.display = 'none';
+  var bm = makeBookmarkletHref();
+  document.getElementById('main').innerHTML =
+    '<div class="onboard">' +
+      '<div class="onboard-hero">' +
+        '<h2>Track support acts across AMG venues</h2>' +
+        '<p>Use the bookmarklet below to scrape any AMG events page in your browser, then drop the downloaded file here.</p>' +
+      '</div>' +
+      '<div class="steps">' +
+        '<div class="step"><div class="step-num">1</div><p>Drag the bookmarklet below to your <strong>bookmarks bar</strong></p></div>' +
+        '<div class="step"><div class="step-num">2</div><p>Go to any <strong>AMG venue events page</strong> (e.g. O2 Brixton)</p></div>' +
+        '<div class="step"><div class="step-num">3</div><p>Click the bookmarklet — it scans <strong>all pages</strong> and downloads a JSON file</p></div>' +
+        '<div class="step"><div class="step-num">4</div><p><strong>Drag the file</strong> onto this page (or click Load Venue Data)</p></div>' +
+      '</div>' +
+      '<div class="bm-panel">' +
+        '<h3>Your Bookmarklet</h3>' +
+        '<p>Drag this link to your bookmarks bar, then click it when you\'re on an AMG events page:</p>' +
+        '<div class="bm-link-wrap">' +
+          '<a class="bm-link" href="' + escAttr(bm) + '" onclick="return false;">♫ AMG — Scrape Support Acts</a>' +
+          '<span class="bm-hint">← Drag this to your bookmarks bar. Works on all 21 AMG venues.</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="drop-zone" id="dropZone" onclick="document.getElementById(\'fileInput\').click()">' +
+        '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+        '<p>Drop JSON files here</p>' +
+        '<span>or click to browse</span>' +
+      '</div>' +
+    '</div>';
+}
+
+function renderStats(venues) {
+  var totalShows = venues.reduce(function(s, v) { return s + v.events.length; }, 0);
+  var totalActs  = venues.reduce(function(s, v) {
+    return s + v.events.reduce(function(es, e) { return es + e.supportActs.length; }, 0);
+  }, 0);
+  var latest = venues.reduce(function(best, v) {
+    return (!best || v.scraped > best) ? v.scraped : best;
+  }, null);
+
+  document.getElementById('sVenues').textContent = venues.length;
+  document.getElementById('sShows').textContent  = totalShows;
+  document.getElementById('sActs').textContent   = totalActs;
+  document.getElementById('sDate').textContent   = latest ? fmtDate(latest) : '—';
+  document.getElementById('statsBar').style.display = '';
+
+  var upd = document.getElementById('lastUpd');
+  upd.textContent = latest ? 'Updated ' + fmtDate(latest) : '';
+}
+
+function renderControls(venues) {
+  var bar = document.getElementById('ctrlBar');
+  bar.style.display = '';
+  document.getElementById('searchInp').value = '';
+
+  var tabs = document.getElementById('vtabs');
+  tabs.innerHTML = '';
+  var all = makeTab('All', 'all');
+  all.classList.add('active');
+  tabs.appendChild(all);
+  venues.forEach(function(v) {
+    tabs.appendChild(makeTab(shortName(v.venue), v.slug));
+  });
+}
+
+function makeTab(label, slug) {
+  var btn = document.createElement('button');
+  btn.className = 'vtab';
+  btn.textContent = label;
+  btn.dataset.slug = slug;
+  btn.onclick = function() { setTab(slug); };
+  return btn;
+}
+
+function setTab(slug) {
+  activeTab = slug;
+  document.querySelectorAll('.vtab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.slug === slug);
+  });
+  document.querySelectorAll('.vcard').forEach(function(c) {
+    c.hidden = (slug !== 'all' && c.dataset.slug !== slug);
+  });
+  applyFilter();
+}
+
+function renderGrid(venues) {
+  var grid = document.getElementById('main');
+  grid.innerHTML = '<div class="grid" id="grid"></div>';
+  var g = document.getElementById('grid');
+  venues.forEach(function(v) { g.appendChild(buildCard(v)); });
+}
+
+function buildCard(v) {
+  var card = document.createElement('div');
+  card.className = 'vcard';
+  card.dataset.slug = v.slug;
+
+  var clearBtn = '<button class="btn btn-danger btn-sm" onclick="clearVenue(\'' + v.slug + '\')" title="Remove this venue">Remove</button>';
+  card.innerHTML =
+    '<div class="vcard-hdr">' +
+      '<div>' +
+        '<div class="vcard-name">' + esc(v.venue) + '</div>' +
+        '<div class="vcard-meta">' +
+          '<a class="vcard-link" href="' + escAttr(v.url) + '" target="_blank" rel="noopener">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+            'AMG listing' +
+          '</a>' +
+        '</div>' +
+      '</div>' +
+      '<div class="vcard-right">' +
+        '<span class="vcard-count">' + v.events.length + ' show' + (v.events.length !== 1 ? 's' : '') + '</span>' +
+        clearBtn +
+      '</div>' +
+    '</div>';
+
+  if (!v.events.length) {
+    card.insertAdjacentHTML('beforeend', '<div class="vcard-empty">No support acts found for this venue.</div>');
+    return card;
+  }
+
+  var ul = document.createElement('ul');
+  ul.className = 'elist';
+  v.events.forEach(function(ev) { ul.appendChild(buildRow(ev)); });
+  card.appendChild(ul);
+  return card;
+}
+
+function buildRow(ev) {
+  var li = document.createElement('li');
+  li.className = 'erow';
+  li.dataset.search = [ev.title].concat(ev.allArtists || []).join(' ').toLowerCase();
+
+  var d = parseDate(ev.date, ev.time);
+  var hlBadges = (ev.headliners || []).map(function(a) { return '<span class="badge badge-hl">' + esc(a) + '</span>'; }).join('');
+  var supBadges = (ev.supportActs || []).map(function(a) { return '<span class="badge badge-sup">' + esc(a) + '</span>'; }).join('');
+
+  li.innerHTML =
+    '<div class="erow-date">' +
+      '<span class="d-dow">' + esc(d.dow) + '</span>' +
+      '<span class="d-num">' + esc(d.num) + '</span>' +
+      '<span class="d-mon">' + esc(d.mon) + '</span>' +
+      (d.time ? '<span class="d-time">' + esc(d.time) + '</span>' : '') +
+    '</div>' +
+    '<div class="erow-detail">' +
+      '<div class="erow-title" title="' + escAttr(ev.title) + '">' + esc(ev.title) + '</div>' +
+      (hlBadges ? '<div class="artist-row"><span class="a-lbl">Headliner</span><div class="badges">' + hlBadges + '</div></div>' : '') +
+      '<div class="artist-row"><span class="a-lbl">Support</span><div class="badges">' + supBadges + '</div></div>' +
+    '</div>';
+
+  return li;
+}
+
+/* =====================================================================
+   FILTER
+   ===================================================================== */
+function applyFilter() {
+  var q = document.getElementById('searchInp').value.toLowerCase().trim();
+  document.querySelectorAll('.erow').forEach(function(row) {
+    row.hidden = q ? !row.dataset.search.includes(q) : false;
+  });
+  document.querySelectorAll('.vcard').forEach(function(card) {
+    if (activeTab !== 'all' && card.dataset.slug !== activeTab) { card.hidden = true; return; }
+    if (!q) { card.hidden = false; return; }
+    var visible = card.querySelectorAll('.erow:not([hidden])').length;
+    card.hidden = visible === 0;
+  });
+}
+
+/* =====================================================================
+   UTILITIES
+   ===================================================================== */
+function parseDate(dateStr, timeStr) {
+  if (!dateStr) return { dow: '', num: '?', mon: '', time: timeStr || '' };
+  var s = dateStr.replace(/\s+/g, ' ').trim();
+  var parts = s.split(' ').filter(Boolean);
+  var dow = parts.find(function(p) { return /^(MON|TUE|WED|THU|FRI|SAT|SUN)$/i.test(p); }) || '';
+  var num = parts.find(function(p) { return /^\d{1,2}$/.test(p); }) || '?';
+  var mon = parts.find(function(p) { return /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i.test(p); }) || '';
+  var embedded = parts.find(function(p) { return /^\d{2}:\d{2}$/.test(p); });
+  return { dow: dow.slice(0,3).toUpperCase(), num: num, mon: mon.slice(0,3).toUpperCase(), time: timeStr || embedded || '' };
+}
+
+function fmtDate(iso) {
+  try {
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  } catch(e) { return iso; }
+}
+
+function shortName(name) {
+  return (name || '')
+    .replace('O2 Academy ', '')
+    .replace('O2 Forum ', 'Forum ')
+    .replace("O2 Shepherd's Bush Empire", "Shep's Bush");
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return esc(s).replace(/"/g,'&quot;');
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+
+/* Optional: bookmarklet can pass data via URL hash as base64 JSON.
+   Format: dashboard.html#import=BASE64_ENCODED_JSON                   */
+function checkHashImport() {
+  var hash = window.location.hash;
+  if (!hash || hash.indexOf('#import=') !== 0) return;
+  try {
+    var b64 = hash.slice('#import='.length);
+    var json = decodeURIComponent(escape(atob(b64)));
+    var payload = JSON.parse(json);
+    if (payload.slug && Array.isArray(payload.events)) {
+      var store = loadStore();
+      store[payload.slug] = payload;
+      saveStore(store);
+    }
+    history.replaceState(null, '', window.location.pathname);
+  } catch(e) { /* malformed hash — ignore */ }
+}
+
+checkHashImport();
+renderAll();
+</script>
+</body>
+</html>
+</body>
+</html>
+</body>
+</html>
+</body>
+</html>
+</body>
+</html>
