@@ -268,26 +268,28 @@
   }
 
   /* -- Combined with diagnostics -- */
-  function extractEvents(doc, label) {
-    // Log which top-level content containers exist — helps identify the right selectors
-    var PROBE = ['main','[role="main"]','#main','.main','.content','#content',
-      '.whats-on','.events','.listings','.event-listing','.events-listing',
-      '[class*="EventsList"]','[class*="events-list"]','[class*="WhatsOn"]','[class*="whats-on"]'];
-    var found = PROBE.filter(function (s) { try { return !!doc.querySelector(s); } catch(e) { return false; } });
-    console.log('[SupportTracker]', label, 'containers:', found.join(', ') || 'none');
+  var JUNK_RE = /privacy|cookie|gdpr|consent|newsletter|sign up|exclusive update|never miss|advertising and content|audience research|personalised|partners can use|services development|^what'?s on$/i;
+  function cleanEvents(arr) {
+    return dedupe(arr.filter(function (e) {
+      if (JUNK_RE.test(e.title)) return false;
+      var artists = (e.allArtists || []).join(' ');
+      if (JUNK_RE.test(artists)) return false;
+      return true;
+    }));
+  }
 
+  function extractEvents(doc, label) {
     var ld = fromJsonLd(doc);
-    if (ld.length) { console.log('[SupportTracker]', label, 'JSON-LD:', ld.length); return dedupe(ld); }
+    if (ld.length) { console.log('[SupportTracker]', label, 'JSON-LD:', ld.length); return cleanEvents(ld); }
     var nd = fromNextData(doc);
-    if (nd.length) { console.log('[SupportTracker]', label, '__NEXT_DATA__:', nd.length); return dedupe(nd); }
+    if (nd.length) { console.log('[SupportTracker]', label, '__NEXT_DATA__:', nd.length); return cleanEvents(nd); }
     var dom = fromDOM(doc);
     console.log('[SupportTracker]', label,
       'DOM result:', dom.length,
-      '| NEXT_DATA present:', !!doc.querySelector('#__NEXT_DATA__'),
       '| title:', doc.title,
       '| snippet:', (doc.body ? doc.body.innerText.slice(0, 200).replace(/\s+/g, ' ') : 'none')
     );
-    return dedupe(dom);
+    return cleanEvents(dom);
   }
 
   /* -- Build a paginated URL using AMG's ?Page=N convention -- */
