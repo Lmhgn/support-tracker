@@ -46,27 +46,34 @@
 
   /* -- Venue list -- */
   var VENUES = [
-    { slug: 'o2academybrixton',       name: 'O2 Academy Brixton' },
-    { slug: 'o2academyislington',     name: 'O2 Academy Islington' },
-    { slug: 'o2forumkentishtown',     name: 'O2 Forum Kentish Town' },
-    { slug: 'o2shepherdsbushempire',  name: "O2 Shepherd's Bush Empire" },
-    { slug: 'o2apollomanchester',     name: 'O2 Apollo Manchester' },
-    { slug: 'o2academyleeds',         name: 'O2 Academy Leeds' },
-    { slug: 'o2academybirmingham',    name: 'O2 Academy Birmingham' },
-    { slug: 'o2institutebirmingham',  name: 'O2 Institute Birmingham' },
-    { slug: 'o2academyliverpool',     name: 'O2 Academy Liverpool' },
-    { slug: 'o2academynewcastle',     name: 'O2 Academy Newcastle' },
-    { slug: 'o2cityhallnewcastle',    name: 'O2 City Hall Newcastle' },
-    { slug: 'o2academyglasgow',       name: 'O2 Academy Glasgow' },
-    { slug: 'o2abcglasgow',           name: 'O2 ABC Glasgow' },
-    { slug: 'o2academyoxford',        name: 'O2 Academy Oxford' },
-    { slug: 'o2academysheffield',     name: 'O2 Academy Sheffield' },
-    { slug: 'o2academybristol',       name: 'O2 Academy Bristol' },
-    { slug: 'o2guildhallsouthampton', name: 'O2 Guildhall Southampton' },
-    { slug: 'o2victoriawarehouse',    name: 'O2 Victoria Warehouse Manchester' },
-    { slug: 'o2academyedinburgh',     name: 'O2 Academy Edinburgh' },
-    { slug: 'o2academyleicester',     name: 'O2 Academy Leicester' },
-    { slug: 'o2pyramidportsmouth',    name: 'O2 Pyramid Portsmouth' }
+    // London
+    { slug: 'o2academybrixton',              name: 'O2 Academy Brixton' },
+    { slug: 'o2academyislington',            name: 'O2 Academy Islington' },
+    { slug: 'o2forumkentishtown',            name: 'O2 Forum Kentish Town' },
+    { slug: 'o2shepherdsbushempire',         name: "O2 Shepherd's Bush Empire" },
+    // Midlands
+    { slug: 'o2academybirmingham',           name: 'O2 Academy Birmingham' },
+    { slug: 'o2institutebirmingham',         name: 'O2 Institute Birmingham' },
+    { slug: 'o2academyleicester',            name: 'O2 Academy Leicester' },
+    { slug: 'o2academyoxford',               name: 'O2 Academy Oxford' },
+    // South
+    { slug: 'o2academybournemouth',          name: 'O2 Academy Bournemouth' },
+    { slug: 'o2academybristol',              name: 'O2 Academy Bristol' },
+    { slug: 'o2guildhallsouthampton',        name: 'O2 Guildhall Southampton' },
+    // North West
+    { slug: 'o2academyliverpool',            name: 'O2 Academy Liverpool' },
+    { slug: 'o2ritzmanchester',              name: 'O2 Ritz Manchester' },
+    { slug: 'o2victoriawarehousemanchester', name: 'O2 Victoria Warehouse Manchester' },
+    { slug: 'o2apollomanchester',            name: 'O2 Apollo Manchester' },
+    // Yorkshire
+    { slug: 'o2academyleeds',                name: 'O2 Academy Leeds' },
+    { slug: 'o2academysheffield',            name: 'O2 Academy Sheffield' },
+    // North East
+    { slug: 'o2cityhallnewcastle',           name: 'O2 City Hall Newcastle' },
+    // Scotland
+    { slug: 'o2academyglasgow',              name: 'O2 Academy Glasgow' },
+    { slug: 'edinburghcornexchange',         name: 'Edinburgh Corn Exchange',
+      baseUrl: 'https://www.edinburghcornexchange.co.uk/whats-on', htmlOnly: true }
   ];
 
   /* -- Helpers -- */
@@ -312,10 +319,12 @@
         var data = await r.json();
         var events = searchData(data, 0);
         if (events.length >= 2) {
-          var template = (currentSlug && url.includes(currentSlug))
-            ? url.replace(new RegExp(currentSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '__SLUG__')
-            : url;
-          console.log('[SupportTracker] ✓ Events API found:', template, '→', events.length, 'events');
+          if (!currentSlug || !url.includes(currentSlug)) {
+            console.log('[SupportTracker] API has events but is not venue-specific — skipping:', url.replace(/^https?:\/\/[^/]+/, '').slice(0, 80));
+            continue;
+          }
+          var template = url.replace(new RegExp(currentSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '__SLUG__');
+          console.log('[SupportTracker] ✓ Venue-specific API found:', template, '→', events.length, 'events');
           return template;
         }
       } catch (e2) { /* skip */ }
@@ -361,9 +370,9 @@
     return all;
   }
 
-  /* -- Scrape one venue via HTML (fallback) -- */
+  /* -- Scrape one venue via HTML (fallback, or htmlOnly venues like Edinburgh) -- */
   async function scrapeVenueHTML(venue, idx) {
-    var baseUrl = 'https://www.academymusicgroup.com/' + venue.slug + '/events';
+    var baseUrl = venue.baseUrl || ('https://www.academymusicgroup.com/' + venue.slug + '/events');
     var all = [];
     for (var page = 1; page <= 6; page++) {
       var url = pageUrl(baseUrl, page);
@@ -393,14 +402,15 @@
 
   for (var i = 0; i < VENUES.length; i++) {
     var venue = VENUES[i];
-    var events = apiTemplate
+    var useAPI = apiTemplate && !venue.htmlOnly;
+    var events = useAPI
       ? await scrapeVenueAPI(venue, i + 1, apiTemplate)
       : await scrapeVenueHTML(venue, i + 1);
     if (events.length) {
       results.push({
         slug: venue.slug,
         venue: venue.name,
-        url: 'https://www.academymusicgroup.com/' + venue.slug + '/events',
+        url: venue.baseUrl || ('https://www.academymusicgroup.com/' + venue.slug + '/events'),
         events: events,
         scraped: new Date().toISOString()
       });
