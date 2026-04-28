@@ -325,31 +325,36 @@
     return null;
   }
 
+  /* -- Build a paginated URL using AMG's ?Page=N convention -- */
+  function pageUrl(base, page) {
+    if (page === 1) return base;
+    // Replace existing Page/page/offset param, or append
+    if (/[?&]Page=\d+/i.test(base)) return base.replace(/([?&]Page=)\d+/i, '$1' + page);
+    if (/[?&]offset=\d+/.test(base))  return base.replace(/([?&]offset=)\d+/, '$1' + ((page - 1) * 20));
+    return base + (base.includes('?') ? '&' : '?') + 'Page=' + page;
+  }
+
   /* -- Scrape one venue via JSON API -- */
   async function scrapeVenueAPI(venue, idx, apiTemplate) {
     var all = [];
-    for (var page = 1; page <= 25; page++) {
+    var seen = {};
+    for (var page = 1; page <= 6; page++) {
       sp('API ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — p' + page, Math.round((idx - 1) / VENUES.length * 100));
-      var url = apiTemplate.replace(/__SLUG__/g, venue.slug);
-      // Replace or append a page parameter
-      if (/[?&]page=\d+/.test(url)) {
-        url = url.replace(/([?&]page=)\d+/, '$1' + page);
-      } else if (/[?&]offset=\d+/.test(url)) {
-        url = url.replace(/([?&]offset=)\d+/, '$1' + ((page - 1) * 20));
-      } else {
-        url += (url.includes('?') ? '&' : '?') + 'page=' + page;
-      }
+      var url = pageUrl(apiTemplate.replace(/__SLUG__/g, venue.slug), page);
       try {
         var r = await fetch(url, { credentials: 'include' });
         if (!r.ok) { console.log('[SupportTracker] API', venue.slug, 'p' + page, r.status); break; }
         var ct = r.headers.get('content-type') || '';
-        if (!ct.includes('json')) { console.log('[SupportTracker] API', venue.slug, 'non-JSON response'); break; }
+        if (!ct.includes('json')) { console.log('[SupportTracker] API', venue.slug, 'non-JSON'); break; }
         var data = await r.json();
-        var batch = dedupe(searchData(data, 0));
-        console.log('[SupportTracker] API', venue.slug, 'p' + page, '→', batch.length, 'events');
+        var batch = searchData(data, 0).filter(function (e) {
+          if (seen[e.title]) return false;
+          seen[e.title] = true;
+          return true;
+        });
+        console.log('[SupportTracker] API', venue.slug, 'p' + page, '→', batch.length, 'new events');
         if (!batch.length) break;
         all = all.concat(batch);
-        if (batch.length < 10) break; // likely last page
         await new Promise(function (r) { setTimeout(r, 300); });
       } catch (e) { console.log('[SupportTracker] API error', venue.slug, e.message); break; }
     }
@@ -358,21 +363,21 @@
 
   /* -- Scrape one venue via HTML (fallback) -- */
   async function scrapeVenueHTML(venue, idx) {
-    var url = 'https://www.academymusicgroup.com/' + venue.slug + '/events';
+    var baseUrl = 'https://www.academymusicgroup.com/' + venue.slug + '/events';
     var all = [];
-    var pages = 0;
-    while (url && pages < 25) {
-      pages++;
-      sp('Crawling ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — page ' + pages, Math.round((idx - 1) / VENUES.length * 100));
+    for (var page = 1; page <= 6; page++) {
+      var url = pageUrl(baseUrl, page);
+      sp('Crawling ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — page ' + page, Math.round((idx - 1) / VENUES.length * 100));
       try {
         var res = await fetch(url, { credentials: 'include' });
-        console.log('[SupportTracker]', venue.slug, 'p' + pages, 'HTTP', res.status, '| final URL:', res.url);
+        console.log('[SupportTracker]', venue.slug, 'p' + page, 'HTTP', res.status, '| url:', res.url);
         if (!res.ok) break;
         var html = await res.text();
         var doc = new DOMParser().parseFromString(html, 'text/html');
-        all = all.concat(extractEvents(doc, venue.slug + ' p' + pages));
-        url = getNextUrl(doc, url);
-        if (url) await new Promise(function (r) { setTimeout(r, 400); });
+        var batch = extractEvents(doc, venue.slug + ' p' + page);
+        all = all.concat(batch);
+        if (!batch.length && page > 1) break; // empty page means we're past the end
+        await new Promise(function (r) { setTimeout(r, 400); });
       } catch (e) { console.log('[SupportTracker]', venue.slug, 'error:', e.message); break; }
     }
     return all;
