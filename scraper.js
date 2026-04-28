@@ -286,8 +286,78 @@
     try { var u = new URL(el.href, cur); return u.href === cur ? null : u.href; } catch (e) { return null; }
   }
 
-  /* -- Scrape one venue -- */
-  async function scrapeVenue(venue, idx) {
+  /* -- API discovery: inspect what the live page already fetched -- */
+  async function discoverEventsAPI(currentSlug) {
+    if (!window.performance || !performance.getEntriesByType) {
+      console.log('[SupportTracker] Performance API unavailable');
+      return null;
+    }
+
+    var candidates = performance.getEntriesByType('resource').filter(function (e) {
+      return (e.initiatorType === 'fetch' || e.initiatorType === 'xmlhttprequest') &&
+        !e.name.match(/\.(js|css|png|jpg|gif|svg|woff2?|ttf|eot|ico|webp)(\?|$)/i) &&
+        !e.name.match(/\/(analytics|tracking|gtm|segment|hotjar|sentry|datadog|intercom|amplitude)\//i);
+    });
+
+    console.log('[SupportTracker] API candidates (' + candidates.length + '):',
+      candidates.map(function (e) { return e.name.replace(/^https?:\/\/[^/]+/, '').slice(0, 80); }).join(' | '));
+
+    for (var i = 0; i < candidates.length; i++) {
+      var url = candidates[i].name;
+      try {
+        var r = await fetch(url, { credentials: 'include' });
+        if (!r.ok) continue;
+        var ct = r.headers.get('content-type') || '';
+        if (!ct.includes('json')) continue;
+        var data = await r.json();
+        var events = searchData(data, 0);
+        if (events.length >= 2) {
+          var template = (currentSlug && url.includes(currentSlug))
+            ? url.replace(new RegExp(currentSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '__SLUG__')
+            : url;
+          console.log('[SupportTracker] ✓ Events API found:', template, '→', events.length, 'events');
+          return template;
+        }
+      } catch (e2) { /* skip */ }
+    }
+
+    console.log('[SupportTracker] No JSON events API found — will fall back to HTML parsing');
+    return null;
+  }
+
+  /* -- Scrape one venue via JSON API -- */
+  async function scrapeVenueAPI(venue, idx, apiTemplate) {
+    var all = [];
+    for (var page = 1; page <= 25; page++) {
+      sp('API ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — p' + page, Math.round((idx - 1) / VENUES.length * 100));
+      var url = apiTemplate.replace(/__SLUG__/g, venue.slug);
+      // Replace or append a page parameter
+      if (/[?&]page=\d+/.test(url)) {
+        url = url.replace(/([?&]page=)\d+/, '$1' + page);
+      } else if (/[?&]offset=\d+/.test(url)) {
+        url = url.replace(/([?&]offset=)\d+/, '$1' + ((page - 1) * 20));
+      } else {
+        url += (url.includes('?') ? '&' : '?') + 'page=' + page;
+      }
+      try {
+        var r = await fetch(url, { credentials: 'include' });
+        if (!r.ok) { console.log('[SupportTracker] API', venue.slug, 'p' + page, r.status); break; }
+        var ct = r.headers.get('content-type') || '';
+        if (!ct.includes('json')) { console.log('[SupportTracker] API', venue.slug, 'non-JSON response'); break; }
+        var data = await r.json();
+        var batch = dedupe(searchData(data, 0));
+        console.log('[SupportTracker] API', venue.slug, 'p' + page, '→', batch.length, 'events');
+        if (!batch.length) break;
+        all = all.concat(batch);
+        if (batch.length < 10) break; // likely last page
+        await new Promise(function (r) { setTimeout(r, 300); });
+      } catch (e) { console.log('[SupportTracker] API error', venue.slug, e.message); break; }
+    }
+    return all;
+  }
+
+  /* -- Scrape one venue via HTML (fallback) -- */
+  async function scrapeVenueHTML(venue, idx) {
     var url = 'https://www.academymusicgroup.com/' + venue.slug + '/events';
     var all = [];
     var pages = 0;
@@ -296,7 +366,8 @@
       sp('Crawling ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — page ' + pages, Math.round((idx - 1) / VENUES.length * 100));
       try {
         var res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) { console.log('[SupportTracker]', venue.slug, 'HTTP', res.status); break; }
+        console.log('[SupportTracker]', venue.slug, 'p' + pages, 'HTTP', res.status, '| final URL:', res.url);
+        if (!res.ok) break;
         var html = await res.text();
         var doc = new DOMParser().parseFromString(html, 'text/html');
         all = all.concat(extractEvents(doc, venue.slug + ' p' + pages));
@@ -308,12 +379,18 @@
   }
 
   /* -- Main loop -- */
-  sp('Starting — crawling ' + VENUES.length + ' venues…', 0);
+  sp('Discovering events API…', 0);
+  var currentSlug = window.location.pathname.split('/').filter(Boolean)[0] || '';
+  var apiTemplate = await discoverEventsAPI(currentSlug);
+
+  sp((apiTemplate ? 'Using API' : 'Using HTML scrape') + ' — crawling ' + VENUES.length + ' venues…', 0);
   var results = [];
 
   for (var i = 0; i < VENUES.length; i++) {
     var venue = VENUES[i];
-    var events = await scrapeVenue(venue, i + 1);
+    var events = apiTemplate
+      ? await scrapeVenueAPI(venue, i + 1, apiTemplate)
+      : await scrapeVenueHTML(venue, i + 1);
     if (events.length) {
       results.push({
         slug: venue.slug,
