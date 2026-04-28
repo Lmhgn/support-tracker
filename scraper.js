@@ -287,125 +287,117 @@
     return dedupe(dom);
   }
 
-  function getNextUrl(doc, cur) {
-    var el = doc.querySelector('a[rel="next"], .pagination__next a, .next a, a.next, [class*="pagination"] a:last-child');
-    if (!el || !el.href) return null;
-    try { var u = new URL(el.href, cur); return u.href === cur ? null : u.href; } catch (e) { return null; }
-  }
-
-  /* -- API discovery: inspect what the live page already fetched -- */
-  async function discoverEventsAPI(currentSlug) {
-    if (!window.performance || !performance.getEntriesByType) {
-      console.log('[SupportTracker] Performance API unavailable');
-      return null;
-    }
-
-    var candidates = performance.getEntriesByType('resource').filter(function (e) {
-      return (e.initiatorType === 'fetch' || e.initiatorType === 'xmlhttprequest') &&
-        !e.name.match(/\.(js|css|png|jpg|gif|svg|woff2?|ttf|eot|ico|webp)(\?|$)/i) &&
-        !e.name.match(/\/(analytics|tracking|gtm|segment|hotjar|sentry|datadog|intercom|amplitude)\//i);
-    });
-
-    console.log('[SupportTracker] API candidates (' + candidates.length + '):',
-      candidates.map(function (e) { return e.name.replace(/^https?:\/\/[^/]+/, '').slice(0, 80); }).join(' | '));
-
-    for (var i = 0; i < candidates.length; i++) {
-      var url = candidates[i].name;
-      try {
-        var r = await fetch(url, { credentials: 'include' });
-        if (!r.ok) continue;
-        var ct = r.headers.get('content-type') || '';
-        if (!ct.includes('json')) continue;
-        var data = await r.json();
-        var events = searchData(data, 0);
-        if (events.length >= 2) {
-          if (!currentSlug || !url.includes(currentSlug)) {
-            console.log('[SupportTracker] API has events but is not venue-specific — skipping:', url.replace(/^https?:\/\/[^/]+/, '').slice(0, 80));
-            continue;
-          }
-          var template = url.replace(new RegExp(currentSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '__SLUG__');
-          console.log('[SupportTracker] ✓ Venue-specific API found:', template, '→', events.length, 'events');
-          return template;
-        }
-      } catch (e2) { /* skip */ }
-    }
-
-    console.log('[SupportTracker] No JSON events API found — will fall back to HTML parsing');
-    return null;
-  }
-
   /* -- Build a paginated URL using AMG's ?Page=N convention -- */
   function pageUrl(base, page) {
     if (page === 1) return base;
-    // Replace existing Page/page/offset param, or append
     if (/[?&]Page=\d+/i.test(base)) return base.replace(/([?&]Page=)\d+/i, '$1' + page);
-    if (/[?&]offset=\d+/.test(base))  return base.replace(/([?&]offset=)\d+/, '$1' + ((page - 1) * 20));
     return base + (base.includes('?') ? '&' : '?') + 'Page=' + page;
   }
 
-  /* -- Scrape one venue via JSON API -- */
-  async function scrapeVenueAPI(venue, idx, apiTemplate) {
-    var all = [];
-    var seen = {};
-    for (var page = 1; page <= 6; page++) {
-      sp('API ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — p' + page, Math.round((idx - 1) / VENUES.length * 100));
-      var url = pageUrl(apiTemplate.replace(/__SLUG__/g, venue.slug), page);
-      try {
-        var r = await fetch(url, { credentials: 'include' });
-        if (!r.ok) { console.log('[SupportTracker] API', venue.slug, 'p' + page, r.status); break; }
-        var ct = r.headers.get('content-type') || '';
-        if (!ct.includes('json')) { console.log('[SupportTracker] API', venue.slug, 'non-JSON'); break; }
-        var data = await r.json();
-        var batch = searchData(data, 0).filter(function (e) {
-          if (seen[e.title]) return false;
-          seen[e.title] = true;
-          return true;
-        });
-        console.log('[SupportTracker] API', venue.slug, 'p' + page, '→', batch.length, 'new events');
-        if (!batch.length) break;
-        all = all.concat(batch);
-        await new Promise(function (r) { setTimeout(r, 300); });
-      } catch (e) { console.log('[SupportTracker] API error', venue.slug, e.message); break; }
-    }
-    return all;
+  /* -- Load a URL in a hidden same-origin iframe and wait for React to render -- */
+  function scrapeInIframe(url, label) {
+    return new Promise(function (resolve) {
+      var iframe = document.createElement('iframe');
+      // Give the iframe a real viewport size so lazy-loading works, but keep it off-screen
+      iframe.style.cssText = 'position:fixed;top:0;left:-1400px;width:1280px;height:900px;opacity:0;pointer-events:none;z-index:-1';
+      document.body.appendChild(iframe);
+
+      var resolved = false;
+      function done(events) {
+        if (resolved) return;
+        resolved = true;
+        try { document.body.removeChild(iframe); } catch (e) {}
+        resolve(events);
+      }
+
+      // Hard timeout — give up after 20 s
+      var hardTimeout = setTimeout(function () {
+        console.log('[SupportTracker]', label, 'iframe hard timeout');
+        done([]);
+      }, 20000);
+
+      iframe.onload = function () {
+        // Poll until events appear in the iframe DOM or 8 s passes
+        var pollStart = Date.now();
+        var poll = setInterval(function () {
+          try {
+            var doc = iframe.contentDocument;
+            if (!doc || !doc.body) return;
+            var events = extractEvents(doc, label);
+            var elapsed = Date.now() - pollStart;
+            if (events.length > 0 || elapsed > 8000) {
+              clearInterval(poll);
+              clearTimeout(hardTimeout);
+              console.log('[SupportTracker]', label, 'iframe:', events.length, 'events in', Math.round(elapsed / 100) / 10 + 's');
+              done(events);
+            }
+          } catch (e) {
+            clearInterval(poll);
+            clearTimeout(hardTimeout);
+            console.log('[SupportTracker]', label, 'iframe read error:', e.message);
+            done([]);
+          }
+        }, 400);
+      };
+
+      iframe.onerror = function () {
+        clearTimeout(hardTimeout);
+        console.log('[SupportTracker]', label, 'iframe load error');
+        done([]);
+      };
+
+      iframe.src = url;
+    });
   }
 
-  /* -- Scrape one venue via HTML (fallback, or htmlOnly venues like Edinburgh) -- */
+  /* -- Scrape via fetch+DOMParser (for cross-origin venues like Edinburgh) -- */
   async function scrapeVenueHTML(venue, idx) {
     var baseUrl = venue.baseUrl || ('https://www.academymusicgroup.com/' + venue.slug + '/events');
     var all = [];
     for (var page = 1; page <= 6; page++) {
-      var url = pageUrl(baseUrl, page);
-      sp('Crawling ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — page ' + page, Math.round((idx - 1) / VENUES.length * 100));
+      sp('Crawling ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — p' + page, Math.round((idx - 1) / VENUES.length * 100));
       try {
-        var res = await fetch(url, { credentials: 'include' });
-        console.log('[SupportTracker]', venue.slug, 'p' + page, 'HTTP', res.status, '| url:', res.url);
+        var res = await fetch(pageUrl(baseUrl, page), { credentials: 'include' });
         if (!res.ok) break;
-        var html = await res.text();
-        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         var batch = extractEvents(doc, venue.slug + ' p' + page);
         all = all.concat(batch);
-        if (!batch.length && page > 1) break; // empty page means we're past the end
+        if (!batch.length && page > 1) break;
         await new Promise(function (r) { setTimeout(r, 400); });
-      } catch (e) { console.log('[SupportTracker]', venue.slug, 'error:', e.message); break; }
+      } catch (e) { console.log('[SupportTracker]', venue.slug, 'fetch error:', e.message); break; }
+    }
+    return all;
+  }
+
+  /* -- Scrape via iframe (same-origin AMG venues — gets live JS-rendered DOM) -- */
+  async function scrapeVenueIframe(venue, idx) {
+    var baseUrl = 'https://www.academymusicgroup.com/' + venue.slug + '/events';
+    var all = [];
+    var seen = {};
+    for (var page = 1; page <= 6; page++) {
+      sp('Loading ' + venue.name + ' (' + idx + '/' + VENUES.length + ') — p' + page, Math.round((idx - 1) / VENUES.length * 100));
+      var events = await scrapeInIframe(pageUrl(baseUrl, page), venue.slug + ' p' + page);
+      var fresh = events.filter(function (e) {
+        if (seen[e.title]) return false;
+        seen[e.title] = true;
+        return true;
+      });
+      if (!fresh.length && page > 1) break;
+      all = all.concat(fresh);
     }
     return all;
   }
 
   /* -- Main loop -- */
-  sp('Discovering events API…', 0);
-  var currentSlug = window.location.pathname.split('/').filter(Boolean)[0] || '';
-  var apiTemplate = await discoverEventsAPI(currentSlug);
-
-  sp((apiTemplate ? 'Using API' : 'Using HTML scrape') + ' — crawling ' + VENUES.length + ' venues…', 0);
+  sp('Crawling ' + VENUES.length + ' venues…', 0);
   var results = [];
 
   for (var i = 0; i < VENUES.length; i++) {
     var venue = VENUES[i];
-    var useAPI = apiTemplate && !venue.htmlOnly;
-    var events = useAPI
-      ? await scrapeVenueAPI(venue, i + 1, apiTemplate)
-      : await scrapeVenueHTML(venue, i + 1);
+    // Edinburgh Corn Exchange is cross-origin — use fetch; AMG venues use iframe (live DOM)
+    var events = venue.htmlOnly
+      ? await scrapeVenueHTML(venue, i + 1)
+      : await scrapeVenueIframe(venue, i + 1);
     if (events.length) {
       results.push({
         slug: venue.slug,
