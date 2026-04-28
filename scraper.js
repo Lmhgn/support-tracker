@@ -175,24 +175,43 @@
 
   /* -- Method 3: DOM -- */
   function fromDOM(doc) {
+    // True if element lives inside a hero / banner / carousel ancestor
+    function inBanner(el) {
+      var node = el.parentElement;
+      while (node && node !== doc.body) {
+        var combined = ((node.className || '') + ' ' + (node.id || '')).toLowerCase();
+        if (/\b(hero|banner|featured|promo|carousel|slider|spotlight|masthead|highlight|marquee)\b/.test(combined)) return true;
+        node = node.parentElement;
+      }
+      return false;
+    }
+
     var SELS = [
       '.whats-on__item', '.event-listing__item', '.event-item', '.events-list__item',
       '[class*="EventCard"]', '[class*="event-card"]', '[class*="EventItem"]', '[class*="event-item"]',
       '[class*="EventRow"]', '[class*="ListingCard"]', '[class*="listing-card"]', '[class*="EventListing"]',
       'article', '[role="listitem"]'
     ];
+
+    // Pick the selector yielding the MOST items outside banner sections
     var items = [];
+    var usedSel = 'none';
     for (var i = 0; i < SELS.length; i++) {
       var found = Array.from(doc.querySelectorAll(SELS[i])).filter(function (el) {
-        return el.querySelector('h1,h2,h3,h4,h5');
+        return el.querySelector('h1,h2,h3,h4,h5') && !inBanner(el);
       });
-      if (found.length > 1) { items = found; break; }
+      if (found.length > items.length) { items = found; usedSel = SELS[i]; }
     }
+
     if (!items.length) {
       items = Array.from(doc.querySelectorAll('li,div')).filter(function (el) {
-        return el.querySelector('h2,h3,h4,h5') && el.querySelectorAll('p,span').length > 1;
+        return el.querySelector('h2,h3,h4,h5') && el.querySelectorAll('p,span').length > 1 && !inBanner(el);
       }).slice(0, 100);
+      if (items.length) usedSel = 'fallback li/div';
     }
+
+    console.log('[SupportTracker] DOM selector:', usedSel, '| count:', items.length,
+      '| sample:', items.slice(0, 2).map(function (el) { return (el.className || el.tagName).toString().slice(0, 60); }).join(' || '));
 
     var events = [];
     var seen = {};
@@ -240,16 +259,23 @@
 
   /* -- Combined with diagnostics -- */
   function extractEvents(doc, label) {
+    // Log which top-level content containers exist — helps identify the right selectors
+    var PROBE = ['main','[role="main"]','#main','.main','.content','#content',
+      '.whats-on','.events','.listings','.event-listing','.events-listing',
+      '[class*="EventsList"]','[class*="events-list"]','[class*="WhatsOn"]','[class*="whats-on"]'];
+    var found = PROBE.filter(function (s) { try { return !!doc.querySelector(s); } catch(e) { return false; } });
+    console.log('[SupportTracker]', label, 'containers:', found.join(', ') || 'none');
+
     var ld = fromJsonLd(doc);
     if (ld.length) { console.log('[SupportTracker]', label, 'JSON-LD:', ld.length); return dedupe(ld); }
     var nd = fromNextData(doc);
     if (nd.length) { console.log('[SupportTracker]', label, '__NEXT_DATA__:', nd.length); return dedupe(nd); }
     var dom = fromDOM(doc);
     console.log('[SupportTracker]', label,
-      'DOM:', dom.length,
+      'DOM result:', dom.length,
       '| NEXT_DATA present:', !!doc.querySelector('#__NEXT_DATA__'),
       '| title:', doc.title,
-      '| snippet:', (doc.body ? doc.body.innerText.slice(0, 150).replace(/\s+/g, ' ') : 'none')
+      '| snippet:', (doc.body ? doc.body.innerText.slice(0, 200).replace(/\s+/g, ' ') : 'none')
     );
     return dedupe(dom);
   }
